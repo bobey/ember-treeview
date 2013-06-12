@@ -1,0 +1,67 @@
+body {
+    font: 14px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #777;
+    font-weight: 300;
+}
+
+.sortable-placeholder {
+    border: 1px solid #A3BAE9;
+    background-color: #DFE8F6;
+}
+
+.tree-container {
+    margin: 20px;
+}
+
+.tree-node {
+    display: block;
+    /*height: 20px;*/
+}
+
+.tree-node.drag-over {
+    background-color: #A3BAE9;
+}
+
+.tree-node.drag-over.drag-forbidden {
+    background-color: #F2DEDE;
+}
+
+.tree-node.is-selected {
+    background-color: #227ECB;
+    color: white;
+}
+
+.tree-node-sorting {
+    border: 1px solid;
+    height: 12px;
+    width: 50px;
+    display: block;
+}
+
+.tree-node-header {
+    display: inline-block;
+    height: 16px;
+    width: 16px;
+}
+
+.is-branch.is-closed .tree-node-header {
+    background-image: url(http://cdn2.iconfinder.com/data/icons/picol-vector/32/arrow_sans_right-16.png);
+}
+
+.is-branch.is-opened .tree-node-header {
+    background-image: url(http://cdn2.iconfinder.com/data/icons/picol-vector/32/arrow_sans_down-16.png);
+}
+
+.drop-after-node {
+    height: 3px;
+    /*background-color: black;*/
+}
+
+.drop-after-node.drag-over {
+    background-color: #A3BAE9;
+}
+
+.drop-after-node.drag-over.drag-forbidden {
+    background-color: #F2DEDE;
+}
+
