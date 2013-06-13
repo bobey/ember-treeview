@@ -4,7 +4,7 @@
     Ember.Tree = Ember.Namespace.create();
 
     // Ember Tree Node
-    Ember.Tree.Node = Ember.Object.extend({
+    Ember.Tree.Node = Ember.ObjectProxy.extend({
         label: null,
         isActive: false,
         isSelected: false,
@@ -132,7 +132,9 @@
 
         // Configuration
         dragAndDrop: true,
-        treeNodeViewClass: 'Ember.Tree.TreeNodeContainer',
+        treeNodeContainerViewClass: 'Ember.Tree.TreeNodeContainer',
+        treeNodeViewClass: 'Ember.Tree.TreeNode',
+        treeNodeAfterViewClass: 'Ember.Tree.TreeNodeAfter',
         displayRootElement: false,
 
         content: function() {}.property(),
@@ -145,6 +147,7 @@
             this.get('content').forEach(function(node) {
                 this._observeNode(node);
             }, this);
+            this.notifyPropertyChange('treeContent');
         }.observes('content', 'content.@each'),
 
         _notifyTreeContentDidChanged: function() {
@@ -159,7 +162,7 @@
         },
 
         _isDescendantOf: function(descendant, parent) {
-            if (this.get('displayRootElement') && null === descendant.get('parent') || ! this.get('displayRootElement') && descendant.get('parent.isRoot')) {
+            if (!descendant || !parent || this.get('displayRootElement') && null === descendant.get('parent') || !this.get('displayRootElement') && descendant.get('parent.isRoot')) {
                 return false;
             }
 
@@ -175,7 +178,8 @@
     Ember.Tree.TreeContainer = Ember.CollectionView.extend({
 
         controller: null,
-        itemViewClass: Ember.computed.alias('controller.treeNodeViewClass'),
+        nodes: Ember.computed.alias('controller.treeContent'),
+        itemViewClass: Ember.computed.alias('controller.treeNodeContainerViewClass'),
         displayRootElement: Ember.computed.alias('controller.displayRootElement'),
         classNames: ['tree-container'],
 
@@ -183,6 +187,10 @@
             var tree = [];
 
             var root = this.get('nodes').findProperty('isRoot', true);
+
+            if (!root) {
+                return tree;
+            }
 
             if (this.get('displayRootElement')) {
                 tree.pushObject(root);
@@ -202,15 +210,21 @@
                     this._flattenTree(tree, childNode);
                 }, this);
             }
-        },
-
-        nodes: Ember.computed.alias('controller.treeContent')
+        }
     });
 
     Ember.Tree.TreeNodeContainer = Ember.View.extend(Ember.StyleBindingsMixin, {
-        templateName: 'tree-node-container',
+        defaultTemplate: Ember.Handlebars.compile('{{view view.treeNodeView}} {{view view.treeNodeAfterView}}'),
         classNames: ['tree-node-container'],
         displayRootElement: Ember.computed.alias('controller.displayRootElement'),
+
+        treeNodeView: function() {
+            return Ember.get(this.get('controller.treeNodeViewClass'));
+        }.property('controller.treeNodeViewClass'),
+
+        treeNodeAfterView: function() {
+            return Ember.get(this.get('controller.treeNodeAfterViewClass'));
+        }.property('controller.treeNodeAfterViewClass'),
 
         styleBindings:  ['indentation:padding-left'],
 
@@ -247,135 +261,132 @@
             }
 
             node.toggleProperty('isSelected');
+        }
+    });
+
+    Ember.Tree.TreeNode = Ember.View.extend({
+        defaultTemplate: Ember.Handlebars.compile('{{view view.treeNodeHeader}} <span class="node-content">{{view.nodeContent}}</span>'),
+        classNames: ['tree-node'],
+        classNameBindings: ['node.isActive', 'node.isSelected', 'node.isBranch', 'node.isOpened:is-opened:is-closed'],
+
+        node: Ember.computed.alias('parentView.node'),
+
+        nodeContent: function() {
+            return this.get('node.label');
+        }.property('node'),
+
+        didInsertElement: function() {
+            this._super(arguments);
+            this.$().draggable({
+                appendTo: 'body',
+                helper: function() {
+                    return Ember.$('<span/>').append(Ember.$('.node-content', this).html());
+                }
+            });
+
+            this.$().droppable({
+                tolerance: 'pointer',
+                drop: Ember.$.proxy(this.onNodeDropped, this),
+                over: Ember.$.proxy(this.onNodeOver, this),
+                out: Ember.$.proxy(this.onNodeOut, this)
+            });
         },
 
-        treeNodeView: Ember.View.extend({
-            templateName: 'tree-node',
-            classNames: ['tree-node'],
-            classNameBindings: ['node.isActive', 'node.isSelected', 'node.isBranch', 'node.isOpened:is-opened:is-closed'],
+        //_timer: null,
 
-            node: Ember.computed.alias('parentView.node'),
+        onNodeDropped: function(event, ui) {
+            this.$().removeClass('drag-over drag-forbidden');
 
-            nodeContent: function() {
-                return this.get('node.label');
-            }.property('node'),
+            var targetNode = this.get('node'),
+                overingNode = _getNodeFromDOM(ui.draggable),
+                controller = this.get('controller');
 
-            didInsertElement: function() {
-                this._super(arguments);
-                this.$().draggable({
-                    helper: function() {
-                        return Ember.$('<span/>').append(Ember.$('.node-content', this).html());
-                    }
-                });
-
-                this.$().droppable({
-                    tolerance: 'pointer',
-                    drop: Ember.$.proxy(this.onNodeDropped, this),
-                    over: Ember.$.proxy(this.onNodeOver, this),
-                    out: Ember.$.proxy(this.onNodeOut, this)
-                });
-            },
-
-            //_timer: null,
-
-            onNodeDropped: function(event, ui) {
-                this.$().removeClass('drag-over drag-forbidden');
-
-                var targetNode = this.get('node'),
-                    overingNode = _getNodeFromDOM(ui.draggable),
-                    controller = this.get('controller');
-
-                Ember.run.scheduleOnce('afterRender', this, function() {
-                    if (controller.isDropAllowed(overingNode, targetNode)) {
-                        _insertNodeInto(overingNode, targetNode);
-                    }
-                });
-            },
-
-            onNodeOver: function(event, ui) {
-                this.$().addClass('drag-over');
-                var targetNode = this.get('node'),
-                    overingNode = _getNodeFromDOM(ui.draggable),
-                    controller = this.get('controller');
-
-                controller.send('nodeOverNode', overingNode, targetNode);
-
-                if (!controller.isDropAllowed(overingNode, targetNode)) {
-                    this.$().addClass('drag-forbidden');
+            Ember.run.scheduleOnce('afterRender', this, function() {
+                if (controller.isDropAllowed(overingNode, targetNode)) {
+                    _insertNodeInto(overingNode, targetNode);
                 }
+            });
+        },
 
-                /*if (!node.get('isLead') && !node.get('isOpened')) {
-                 this.set('_timer', setTimeout(function(node) {
-                 node.set('isOpened', true);
-                 }, 500, node));
-                 }*/
-            },
+        onNodeOver: function(event, ui) {
+            this.$().addClass('drag-over');
+            var targetNode = this.get('node'),
+                overingNode = _getNodeFromDOM(ui.draggable),
+                controller = this.get('controller');
 
-            onNodeOut: function() {
-                this.$().removeClass('drag-over drag-forbidden');
+            if (!controller.isDropAllowed(overingNode, targetNode)) {
+                this.$().addClass('drag-forbidden');
+            }
 
-                /*var timer = this.get('_timer');
-                 if (timer) {
-                 clearTimeout(timer);
-                 }*/
-            },
+            /*if (!node.get('isLead') && !node.get('isOpened')) {
+             this.set('_timer', setTimeout(function(node) {
+             node.set('isOpened', true);
+             }, 500, node));
+             }*/
+        },
 
-            treeNodeHeader: Ember.View.extend({
-                node: Ember.computed.alias('parentView.node'),
-                classNames: ['tree-node-header'],
-                click: function(event) {
-                    event.stopPropagation();
-                    this.get('node').toggleProperty('isOpened');
-                }
-            })
-        }),
+        onNodeOut: function() {
+            this.$().removeClass('drag-over drag-forbidden');
 
-        treeNodeAfterView: Ember.View.extend({
-            classNames: ['drop-after-node'],
+            /*var timer = this.get('_timer');
+             if (timer) {
+             clearTimeout(timer);
+             }*/
+        },
+
+        treeNodeHeader: Ember.View.extend({
             node: Ember.computed.alias('parentView.node'),
-            didInsertElement: function() {
-                this._super(arguments);
-                this.$().droppable({
-                    tolerance: 'pointer',
-                    drop: Ember.$.proxy(this.onNodeDropped, this),
-                    over: Ember.$.proxy(this.onNodeOver, this),
-                    out: Ember.$.proxy(this.onNodeOut, this)
-                });
-            },
-
-            onNodeDropped: function(event, ui) {
+            classNames: ['tree-node-header'],
+            click: function(event) {
                 event.stopPropagation();
-                this.$().removeClass('drag-over drag-forbidden');
-
-                var controller = this.get('controller'),
-                    overingNode = _getNodeFromDOM(ui.draggable),
-                    targetNode = this.get('node');
-
-                Ember.run.scheduleOnce('afterRender', this, function() {
-                    if (controller.isDropAllowed(overingNode, targetNode)) {
-                        _insertNodeAfter(overingNode, targetNode);
-                    }
-                });
-            },
-
-            onNodeOver: function(event, ui) {
-                this.$().addClass('drag-over');
-
-                var controller = this.get('controller'),
-                    overingNode = _getNodeFromDOM(ui.draggable),
-                    targetNode = this.get('node');
-
-                controller.send('nodeAfterNode', overingNode, targetNode);
-
-                if (!controller.isDropAllowed(overingNode, targetNode)) {
-                    this.$().addClass('drag-forbidden');
-                }
-            },
-
-            onNodeOut: function() {
-                this.$().removeClass('drag-over drag-forbidden');
+                this.get('node').toggleProperty('isOpened');
             }
         })
     });
-})();
 
+    Ember.Tree.TreeNodeAfter = Ember.View.extend({
+        classNames: ['drop-after-node'],
+        node: Ember.computed.alias('parentView.node'),
+        didInsertElement: function() {
+            this._super(arguments);
+            this.$().droppable({
+                tolerance: 'pointer',
+                drop: Ember.$.proxy(this.onNodeDropped, this),
+                over: Ember.$.proxy(this.onNodeOver, this),
+                out: Ember.$.proxy(this.onNodeOut, this)
+            });
+        },
+
+        onNodeDropped: function(event, ui) {
+            event.stopPropagation();
+            this.$().removeClass('drag-over drag-forbidden');
+
+            var controller = this.get('controller'),
+                overingNode = _getNodeFromDOM(ui.draggable),
+                targetNode = this.get('node');
+
+            Ember.run.scheduleOnce('afterRender', this, function() {
+                if (controller.isDropAllowed(overingNode, targetNode.get('parent'))) {
+                    _insertNodeAfter(overingNode, targetNode);
+                }
+            });
+        },
+
+        onNodeOver: function(event, ui) {
+            this.$().addClass('drag-over');
+
+            var controller = this.get('controller'),
+                overingNode = _getNodeFromDOM(ui.draggable),
+                targetNode = this.get('node');
+
+            if (!controller.isDropAllowed(overingNode, targetNode.get('parent'))) {
+                this.$().addClass('drag-forbidden');
+            }
+        },
+
+        onNodeOut: function() {
+            this.$().removeClass('drag-over drag-forbidden');
+        }
+    });
+
+})();
