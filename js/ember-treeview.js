@@ -285,9 +285,11 @@
                     overingNode = _getNodeFromDOM(ui.draggable),
                     controller = this.get('controller');
 
-                if (controller.isDropAllowed(overingNode, targetNode)) {
-                    _insertNodeInto(overingNode, targetNode);
-                }
+                Ember.run.scheduleOnce('afterRender', this, function() {
+                    if (controller.isDropAllowed(overingNode, targetNode)) {
+                        _insertNodeInto(overingNode, targetNode);
+                    }
+                });
             },
 
             onNodeOver: function(event, ui) {
@@ -349,9 +351,11 @@
                     overingNode = _getNodeFromDOM(ui.draggable),
                     targetNode = this.get('node');
 
-                if (controller.isDropAllowed(overingNode, targetNode)) {
-                    _insertNodeAfter(overingNode, targetNode);
-                }
+                Ember.run.scheduleOnce('afterRender', this, function() {
+                    if (controller.isDropAllowed(overingNode, targetNode)) {
+                        _insertNodeAfter(overingNode, targetNode);
+                    }
+                });
             },
 
             onNodeOver: function(event, ui) {
