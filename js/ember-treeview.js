@@ -115,7 +115,17 @@
     };
 
     function _getNodeFromDOM($element) {
-        return Ember.View.views[$element.attr('id')].get('node');
+
+        var emberView = Ember.View.views[$element.attr('id')];
+        if (!emberView) {
+            return $element;
+        }
+
+        if (emberView.get('node') instanceof Ember.Tree.Node) {
+            return emberView.get('node')
+        }
+
+        return emberView;
     };
 
     // Controllers
@@ -171,6 +181,15 @@
 
             return !this._isDescendantOf(targetNode, overingNode);
         },
+
+        /**
+         * @method nodeDropped
+         *
+         * @param {Ember.View}
+         * @param {Number} position
+         * @param {Ember.Tree.TreeNode} parent
+         */
+        elementDropped: Ember.K,
 
         /**
          * @method nodeMoved
@@ -293,7 +312,9 @@
             }
 
             node.toggleProperty('isSelected');
-            this.get('controller').nodeSelectionStateChanged(node);
+            Ember.run.next(this, function() {
+                this.get('controller').nodeSelectionStateChanged(node);
+            });
         }
     });
 
@@ -330,14 +351,20 @@
 
             var overingNode = _getNodeFromDOM(ui.draggable),
                 controller = this.get('controller'),
-                oldPosition = overingNode.get('parent.children').indexOf(overingNode),
-                oldParent = overingNode.get('parent'),
                 newPosition = this.get('node.children').length,
                 newParent = this.get('node');
 
-            Ember.run.scheduleOnce('afterRender', this, function() {
-                _moveNode(controller, overingNode, oldPosition, oldParent, newPosition, newParent);
-            });
+            // Node to move
+            if (overingNode instanceof Ember.Tree.Node) {
+                var oldPosition = overingNode.get('parent.children').indexOf(overingNode),
+                    oldParent = overingNode.get('parent');
+
+                Ember.run.scheduleOnce('afterRender', this, function() {
+                    _moveNode(controller, overingNode, oldPosition, oldParent, newPosition, newParent);
+                });
+            }
+
+            controller.elementDropped(overingNode, newPosition, newParent);
         },
 
         onNodeOver: function(event, ui) {
@@ -359,7 +386,6 @@
             node: Ember.computed.alias('parentView.node'),
             classNames: ['tree-node-header'],
             click: function(event) {
-                event.stopPropagation();
                 this.get('node').toggleProperty('isOpened');
                 this.get('controller').nodeOpenStateChanged(this.get('node'));
             }
@@ -383,25 +409,28 @@
         },
 
         onNodeDropped: function(event, ui) {
-            event.stopPropagation();
             this.$().removeClass('drag-over drag-forbidden');
 
             var controller = this.get('controller'),
                 overingNode = _getNodeFromDOM(ui.draggable),
                 targetNode = this.get('node'),
-
-                oldPosition = overingNode.get('parent.children').indexOf(overingNode),
-                oldParent = overingNode.get('parent'),
                 newPosition = targetNode.get('parent.children').indexOf(targetNode),
                 newParent = targetNode.get('parent');
 
-            if (oldParent !== newParent || oldPosition > newPosition) {
-                newPosition++;
+            if (overingNode instanceof Ember.Tree.Node) {
+                var oldPosition = overingNode.get('parent.children').indexOf(overingNode),
+                    oldParent = overingNode.get('parent');
+
+                if (oldParent !== newParent || oldPosition > newPosition) {
+                    newPosition++;
+                }
+
+                Ember.run.scheduleOnce('afterRender', this, function() {
+                    _moveNode(controller, overingNode, oldPosition, oldParent, newPosition, newParent);
+                });
             }
 
-            Ember.run.scheduleOnce('afterRender', this, function() {
-                _moveNode(controller, overingNode, oldPosition, oldParent, newPosition, newParent);
-            });
+            controller.elementDropped(overingNode, newPosition, newParent);
         },
 
         onNodeOver: function(event, ui) {
