@@ -107,9 +107,7 @@
             overingNode.set('parent', newParent);
             newParent.get('children').insertAt(newPosition, overingNode);
 
-            if (controller.nodeMoved) {
-                controller.nodeMoved(overingNode, oldPosition, oldParent, newPosition, newParent);
-            }
+            controller.nodeMoved(overingNode, oldPosition, oldParent, newPosition, newParent);
         }
     };
 
@@ -173,13 +171,32 @@
 
         /**
          * @method nodeMoved
+         *
          * @param {Ember.Tree.TreeNode} node
          * @param {Number} oldPosition
          * @param {Ember.Tree.TreeNode} oldParent
          * @param {Number} newPosition
          * @param {Ember.Tree.TreeNode} newParent
          */
-        nodeMoved: Ember.K
+        nodeMoved: Ember.K,
+
+        /**
+         * @method nodeSelectionStateChanged
+         * @param {Ember.Tree.TreeNode} node
+         */
+        nodeSelectionStateChanged: Ember.K,
+
+        /**
+         * @method nodeOpenStateChanged
+         * @param {Ember.Tree.TreeNode} node
+         */
+        nodeOpenStateChanged: Ember.K,
+
+        /**
+         * @method nodeActiveStateChanged
+         * @param {Ember.Tree.TreeNode} node
+         */
+        nodeActiveStateChanged: Ember.K
     });
 
     // Views
@@ -246,10 +263,12 @@
         // Events
         mouseEnter: function() {
             this.get('node').set('isActive', true);
+            this.get('controller').nodeActiveStateChanged(this.get('node'));
         },
 
         mouseLeave: function() {
             this.get('node').set('isActive', false);
+            this.get('controller').nodeActiveStateChanged(this.get('node'));
         },
 
         doubleClick: function() {
@@ -259,8 +278,7 @@
 
         click: function(event) {
             var node = this.get('node'),
-                nodes = this.get('nodes'),
-                controller = this.get('controller');
+                nodes = this.get('nodes');
 
             if (!event.ctrlKey) {
                 var currentNode = node;
@@ -272,10 +290,7 @@
             }
 
             node.toggleProperty('isSelected');
-
-            if (controller.nodeClicked) {
-                controller.nodeClicked(node);
-            }
+            this.get('controller').nodeSelectionStateChanged(node);
         }
     });
 
@@ -343,6 +358,7 @@
             click: function(event) {
                 event.stopPropagation();
                 this.get('node').toggleProperty('isOpened');
+                this.get('controller').nodeOpenStateChanged(this.get('node'));
             }
         })
     });
