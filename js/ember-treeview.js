@@ -93,33 +93,24 @@
         }
     });
 
-
     // Utils
-    function _removeParent(node) {
-        // Node doesn't belongs to its old parent anymore
-        if (node.get('parent')) {
-            node.get('parent.children').removeObject(node);
+    function _moveNode(controller, overingNode, oldPosition, oldParent, newPosition, newParent) {
+
+
+        if (controller.isDropAllowed(overingNode, newParent)) {
+
+            // Node doesn't belongs to its old parent anymore
+            if (overingNode.get('parent')) {
+                overingNode.get('parent.children').removeObject(overingNode);
+            }
+
+            newParent.set('isOpened', true);
+            overingNode.set('parent', newParent);
+            newParent.get('children').insertAt(newPosition, overingNode);
         }
-    };
 
-    function _insertNodeInto(nodeDropped, targetNode) {
-        _removeParent(nodeDropped);
-
-        targetNode.get('children').pushObject(nodeDropped);
-        nodeDropped.set('parent', targetNode);
-
-        targetNode.set('isOpened', true);
-    };
-
-    function _insertNodeAfter(nodeDropped, afterNode) {
-        _removeParent(nodeDropped);
-
-        // Which is the position of the target node?
-        var parentTarget = afterNode.get('parent');
-        if (parentTarget) {
-            var index = parentTarget.get('children').indexOf(afterNode);
-            nodeDropped.set('parent', parentTarget);
-            parentTarget.get('children').insertAt(index+1, nodeDropped);
+        if (controller.nodeMoved) {
+            controller.nodeMoved(overingNode, oldPosition, oldParent, newPosition, newParent);
         }
     };
 
@@ -139,15 +130,15 @@
 
         content: function() {}.property(),
 
-        treeContent: function() {
-            return this.get('content');
-        }.property(),
+        treeContent: [],
 
         treeContentDidChanged: function() {
             this.get('content').forEach(function(node) {
                 this._observeNode(node);
             }, this);
-            this.notifyPropertyChange('treeContent');
+            //this.notifyPropertyChange('treeContent');
+            this.set('treeContent', this.get('content'));
+
         }.observes('content', 'content.@each'),
 
         _notifyTreeContentDidChanged: function() {
@@ -170,8 +161,22 @@
         },
 
         isDropAllowed: function(overingNode, targetNode) {
+            if (!(overingNode instanceof Ember.Tree.Node)) {
+                return false;
+            }
+
             return !this._isDescendantOf(targetNode, overingNode);
-        }
+        },
+
+        /**
+         * @method nodeMoved
+         * @param {Ember.Tree.TreeNode} node
+         * @param {Number} oldPosition
+         * @param {Ember.Tree.TreeNode} oldParent
+         * @param {Number} newPosition
+         * @param {Ember.Tree.TreeNode} newParent
+         */
+        nodeMoved: Ember.K
     });
 
     // Views
@@ -239,17 +244,20 @@
         mouseEnter: function() {
             this.get('node').set('isActive', true);
         },
+
         mouseLeave: function() {
             this.get('node').set('isActive', false);
         },
 
         doubleClick: function() {
+            //TODO: prevent click if double click is detected
             this.get('node').toggleProperty('isOpened');
         },
 
         click: function(event) {
             var node = this.get('node'),
-                nodes = this.get('nodes');
+                nodes = this.get('nodes'),
+                controller = this.get('controller');
 
             if (!event.ctrlKey) {
                 var currentNode = node;
@@ -261,6 +269,10 @@
             }
 
             node.toggleProperty('isSelected');
+
+            if (controller.nodeClicked) {
+                controller.nodeClicked(node);
+            }
         }
     });
 
@@ -292,19 +304,18 @@
             });
         },
 
-        //_timer: null,
-
         onNodeDropped: function(event, ui) {
             this.$().removeClass('drag-over drag-forbidden');
 
-            var targetNode = this.get('node'),
-                overingNode = _getNodeFromDOM(ui.draggable),
-                controller = this.get('controller');
+            var overingNode = _getNodeFromDOM(ui.draggable),
+                controller = this.get('controller'),
+                oldPosition = overingNode.get('parent.children').indexOf(overingNode),
+                oldParent = overingNode.get('parent'),
+                newPosition = this.get('node.children').length,
+                newParent = this.get('node');
 
             Ember.run.scheduleOnce('afterRender', this, function() {
-                if (controller.isDropAllowed(overingNode, targetNode)) {
-                    _insertNodeInto(overingNode, targetNode);
-                }
+                _moveNode(controller, overingNode, oldPosition, oldParent, newPosition, newParent);
             });
         },
 
@@ -317,21 +328,10 @@
             if (!controller.isDropAllowed(overingNode, targetNode)) {
                 this.$().addClass('drag-forbidden');
             }
-
-            /*if (!node.get('isLead') && !node.get('isOpened')) {
-             this.set('_timer', setTimeout(function(node) {
-             node.set('isOpened', true);
-             }, 500, node));
-             }*/
         },
 
         onNodeOut: function() {
             this.$().removeClass('drag-over drag-forbidden');
-
-            /*var timer = this.get('_timer');
-             if (timer) {
-             clearTimeout(timer);
-             }*/
         },
 
         treeNodeHeader: Ember.View.extend({
@@ -344,6 +344,9 @@
         })
     });
 
+    /**
+     * Target area displayed after each node
+     */
     Ember.Tree.TreeNodeAfter = Ember.View.extend({
         classNames: ['drop-after-node'],
         node: Ember.computed.alias('parentView.node'),
@@ -363,12 +366,19 @@
 
             var controller = this.get('controller'),
                 overingNode = _getNodeFromDOM(ui.draggable),
-                targetNode = this.get('node');
+                targetNode = this.get('node'),
+
+                oldPosition = overingNode.get('parent.children').indexOf(overingNode),
+                oldParent = overingNode.get('parent'),
+                newPosition = targetNode.get('parent.children').indexOf(targetNode),
+                newParent = targetNode.get('parent');
+
+            if (oldParent !== newParent || oldPosition > newPosition) {
+                newPosition++;
+            }
 
             Ember.run.scheduleOnce('afterRender', this, function() {
-                if (controller.isDropAllowed(overingNode, targetNode.get('parent'))) {
-                    _insertNodeAfter(overingNode, targetNode);
-                }
+                _moveNode(controller, overingNode, oldPosition, oldParent, newPosition, newParent);
             });
         },
 
