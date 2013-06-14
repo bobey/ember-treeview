@@ -1,9 +1,17 @@
-ember-treeview
-==============
+Emberjs TreeView
+================
 
-Emberjs TreeView - Proof-of-concept
+Proof-of-concept - Work in progress
 
-**TODO**
+Please, fork!
+
+Demo
+----
+
+Here is a working demo: http://jsfiddle.net/obalais/zqbXY/
+
+TODO
+----
+
 * Clean code
-* Add demo
-* Link a working fiddle
+* Improve demos
