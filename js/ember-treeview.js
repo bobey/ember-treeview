@@ -103,7 +103,10 @@
                 overingNode.get('parent.children').removeObject(overingNode);
             }
 
-            newParent.set('isOpened', true);
+            if (!newParent.get('isOpened')) {
+                newParent.set('isOpened', true);
+                controller.nodeOpenStateChanged(newParent);
+            }
             overingNode.set('parent', newParent);
             newParent.get('children').insertAt(newPosition, overingNode);
 
