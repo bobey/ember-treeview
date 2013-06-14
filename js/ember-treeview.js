@@ -96,7 +96,6 @@
     // Utils
     function _moveNode(controller, overingNode, oldPosition, oldParent, newPosition, newParent) {
 
-
         if (controller.isDropAllowed(overingNode, newParent)) {
 
             // Node doesn't belongs to its old parent anymore
@@ -107,10 +106,10 @@
             newParent.set('isOpened', true);
             overingNode.set('parent', newParent);
             newParent.get('children').insertAt(newPosition, overingNode);
-        }
 
-        if (controller.nodeMoved) {
-            controller.nodeMoved(overingNode, oldPosition, oldParent, newPosition, newParent);
+            if (controller.nodeMoved) {
+                controller.nodeMoved(overingNode, oldPosition, oldParent, newPosition, newParent);
+            }
         }
     };
 
@@ -162,6 +161,10 @@
 
         isDropAllowed: function(overingNode, targetNode) {
             if (!(overingNode instanceof Ember.Tree.Node)) {
+                return false;
+            }
+
+            if (targetNode === overingNode) {
                 return false;
             }
 
