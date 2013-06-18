@@ -279,7 +279,7 @@
             return (this.get('node.level') - (this.get('displayRootElement') ? 0 : 1) ) * 20 + 'px';
         }.property('node.level'),
 
-        nodes: Ember.computed.alias('controller.treeContent'),
+        nodes: Ember.computed.alias('parentView.content'),
         node: Ember.computed.alias('content'),
         selectedNodes: Ember.computed.alias('controller.selectedNodes'),
         _lastNodeClicked: Ember.computed.alias('controller._lastNodeClicked'),
@@ -328,7 +328,7 @@
                     }, this);
                 }
             } else {
-                if (selectedNodes.length > 1) {
+                if (selectedNodes.length > 1 && !event.ctrlKey) {
                     node.set('isSelected', true);
                 } else {
                     node.toggleProperty('isSelected');
