@@ -155,6 +155,10 @@
         displayRootElement: false,
 
         treeContent: [],
+        
+        selectedNodes: function() {
+            return this.get('treeContent').filterProperty('isSelected', true);
+        }.property('treeContent.@each.isSelected'),
 
         _isDescendantOf: function(descendant, parent) {
             if (!descendant || !parent || this.get('displayRootElement') && null === descendant.get('parent') || !this.get('displayRootElement') && descendant.get('parent.isRoot')) {
@@ -174,7 +178,9 @@
             }
 
             return !this._isDescendantOf(targetNode, overingNode);
-        },
+        },            
+            
+        _lastNodeClicked: null,
 
         /**
          * @method nodeDropped
@@ -275,6 +281,8 @@
 
         nodes: Ember.computed.alias('controller.treeContent'),
         node: Ember.computed.alias('content'),
+        selectedNodes: Ember.computed.alias('controller.selectedNodes'),
+        _lastNodeClicked: Ember.computed.alias('controller._lastNodeClicked'),
 
         // Events
         mouseEnter: function() {
@@ -293,10 +301,13 @@
         },
 
         click: function(event) {
+            
             var node = this.get('node'),
-                nodes = this.get('nodes');
+                nodes = this.get('nodes'),
+                lastNodeClicked = this.get('_lastNodeClicked'),
+                selectedNodes = this.get('selectedNodes');
 
-            if (!event.ctrlKey) {
+            if (!event.ctrlKey && !event.shiftKey) {
                 var currentNode = node;
                 nodes.forEach(function(node) {
                     if (node !== currentNode) {
@@ -304,8 +315,28 @@
                     }
                 });
             }
+            
+            if (event.shiftKey) {
+                if (lastNodeClicked && lastNodeClicked.get('isSelected')) {
+                    var lastNodeClickedIndex = nodes.indexOf(lastNodeClicked),
+                        nodeClickedIndex = nodes.indexOf(node);
+                
+                    nodes.forEach(function(node, index) {
+                        if (lastNodeClickedIndex < nodeClickedIndex && index >= lastNodeClickedIndex && index <= nodeClickedIndex || lastNodeClickedIndex > nodeClickedIndex && index <= lastNodeClickedIndex && index >= nodeClickedIndex) {
+                            node.set('isSelected', true);
+                        }
+                    }, this);
+                }
+            } else {
+                if (selectedNodes.length > 1) {
+                    node.set('isSelected', true);
+                } else {
+                    node.toggleProperty('isSelected');
+                }
+            }
+            
+            this.set('_lastNodeClicked', node);
 
-            node.toggleProperty('isSelected');
             Ember.run.next(this, function() {
                 this.get('controller').nodeSelectionStateChanged(node);
             });
