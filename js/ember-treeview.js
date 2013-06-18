@@ -244,7 +244,7 @@
             this._flattenTree(tree, root);
 
             return tree;
-        }.property('nodes'),
+        }.property('nodes', 'nodes.@each'),
 
         _flattenTree: function(tree, node) {
             node.get('children').forEach(function(childNode) {
@@ -273,7 +273,7 @@
             return (this.get('node.level') - (this.get('displayRootElement') ? 0 : 1) ) * 20 + 'px';
         }.property('node.level'),
 
-        nodes: Ember.computed.alias('controller.content'),
+        nodes: Ember.computed.alias('controller.treeContent'),
         node: Ember.computed.alias('content'),
 
         // Events
