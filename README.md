@@ -1,14 +1,32 @@
-Emberjs TreeView
+Ember TreeView
 ================
 
-Proof-of-concept - Work in progress
+A Tree component built using [Ember.js](http://emberjs.com/).
 
-Please, fork!
+Features
+--------
+
+* Drag'n'drop support inside and outside the treeview
+* Rows reordering
+* Simple and multi-selection (simply press CTRL or SHIFT + click)
+
 
 Demo
 ----
 
 Here is a working demo: http://jsfiddle.net/obalais/zqbXY/
+
+Notes
+-----
+
+This is just a proof-of-concept / a work in progress.
+
+Please, fork if you want to improve this component!
+
+Dependencies
+------------
+* ember.js (of course!)
+* jquery-ui (for drag and drop capabilities)
 
 TODO
 ----
