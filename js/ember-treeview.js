@@ -354,7 +354,7 @@
 
         nodeContent: function() {
             return this.get('node.label');
-        }.property('node'),
+        }.property('node.label'),
 
         didInsertElement: function() {
             this._super(arguments);
