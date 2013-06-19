@@ -397,7 +397,7 @@
             this.$().draggable({
                 appendTo: 'body',
                 helper: function() {
-                    return Ember.$('<span/>').append(Ember.$('.node-content', this).html());
+                    return Ember.$('<span/>').append(Ember.$('.node-content', this).text());
                 }
             });
         },
@@ -459,9 +459,11 @@
             node: Ember.computed.alias('parentView.node'),
             classNames: ['tree-node-header'],
             click: function(event) {
-                event.stopPropagation();
-                this.get('node').toggleProperty('isOpened');
-                this.get('controller').nodeOpenStateChanged(this.get('node'));
+                if (this.get('node.isBranch')) {
+                    event.stopPropagation();
+                    this.get('node').toggleProperty('isOpened');
+                    this.get('controller').nodeOpenStateChanged(this.get('node'));
+                }
             }
         })
     });
