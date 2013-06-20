@@ -148,7 +148,10 @@
     Ember.Tree.TreeController = Ember.Controller.extend({
 
         // Configuration
-        dragAndDrop: true,
+        draggable: true,
+        droppable: true,
+        selectable: true,
+
         treeNodeContainerViewClass: 'Ember.Tree.TreeNodeContainer',
         treeNodeViewClass: 'Ember.Tree.TreeNode',
         treeNodeAfterViewClass: 'Ember.Tree.TreeNodeAfter',
@@ -269,6 +272,7 @@
         defaultTemplate: Ember.Handlebars.compile('{{view view.treeNodeView}} {{view view.treeNodeAfterView}}'),
         classNames: ['tree-node-container'],
         displayRootElement: Ember.computed.alias('controller.displayRootElement'),
+        selectable: Ember.computed.alias('controller.selectable'),
 
         treeNodeView: function() {
             return Ember.get(this.get('controller.treeNodeViewClass'));
@@ -306,6 +310,10 @@
         },
 
         click: function(event) {
+
+            if (!this.get('selectable')) {
+                return;
+            }
 
             var node = this.get('node'),
                 nodes = this.get('nodes'),
@@ -351,12 +359,14 @@
     Ember.Tree.DroppableMixin = Ember.Mixin.create({
         didInsertElement: function() {
             this._super(arguments);
-            this.$().droppable({
-                tolerance: 'pointer',
-                drop: Ember.$.proxy(this.onNodeDropped, this),
-                over: Ember.$.proxy(this.onNodeOver, this),
-                out: Ember.$.proxy(this.onNodeOut, this)
-            });
+            if (this.get('droppable')) {
+                this.$().droppable({
+                    tolerance: 'pointer',
+                    drop: Ember.$.proxy(this.onNodeDropped, this),
+                    over: Ember.$.proxy(this.onNodeOver, this),
+                    out: Ember.$.proxy(this.onNodeOut, this)
+                });
+            }
         },
 
         onNodeOut: function() {
@@ -379,7 +389,9 @@
             return this.get('displayRootElement') && this.get('node.isVisible') || !this.get('displayRootElement') && this.get('node.isVisibleUnderRoot');
         }.property('displayRootElement', 'node.parent.isRoot', 'node.isVisible', 'node.isVisibleUnderRoot'),
 
-        displayRootElement: Ember.computed.alias('controller.displayRootElement')
+        displayRootElement: Ember.computed.alias('controller.displayRootElement'),
+        draggable: Ember.computed.alias('controller.draggable'),
+        droppable: Ember.computed.alias('controller.droppable')
     });
 
     Ember.Tree.TreeNode = Ember.Tree.TreeNodeView.extend({
@@ -394,12 +406,14 @@
 
         didInsertElement: function() {
             this._super(arguments);
-            this.$().draggable({
-                appendTo: 'body',
-                helper: function() {
-                    return Ember.$('<span/>').append(Ember.$('.node-content', this).text());
-                }
-            });
+            if (this.get('draggable')) {
+                this.$().draggable({
+                    appendTo: 'body',
+                    helper: function() {
+                        return Ember.$('<span/>').append(Ember.$('.node-content', this).text());
+                    }
+                });
+            }
         },
 
         onNodeDropped: function(event, ui) {
