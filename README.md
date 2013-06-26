@@ -14,7 +14,7 @@ Features
 Demo
 ----
 
-Here is a working demo: http://jsfiddle.net/obalais/zqbXY/
+See: http://bobey.github.io/ember-treeview/
 
 Notes
 -----
